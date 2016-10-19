@@ -60,7 +60,7 @@ const User = new GraphQLObjectType({
     following: {
       description: 'Users that this user is following',
       type: UserConnection,
-      args: connectionArgs,
+      args: forwardConnectionArgs,
       sqlPaginate: true,
       orderBy: {
         created_at: 'DESC',
