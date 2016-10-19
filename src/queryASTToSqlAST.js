@@ -43,7 +43,7 @@ export function getGraphQLType(queryASTNode, parentTypeNode, sqlASTNode, fragmen
   }
 
   // if its a relay connection, there are several things we need to do
-  if (/Connection$/.test(gqlType.name) && gqlType.constructor.name === 'GraphQLObjectType' && gqlType._fields.edges) {
+  if (/Connection$/.test(gqlType.name) && gqlType.constructor.name === 'GraphQLObjectType' && gqlType._fields.edges && gqlType._fields.pageInfo) {
     grabMany = true
     // grab the types and fields inside the connection
     const stripped = stripRelayConnection(field, queryASTNode)
@@ -53,7 +53,7 @@ export function getGraphQLType(queryASTNode, parentTypeNode, sqlASTNode, fragmen
     // we'll set a flag for pagination.
     if (field.sqlPaginate) {
       if (options.dialect !== 'pg') {
-        throw new Error('Cannot so SQL pagination for connections with this SQL dialect')
+        throw new Error('Cannot do SQL pagination for connections with this SQL dialect')
       }
       sqlASTNode.paginate = true
       if (field.sortKey) {

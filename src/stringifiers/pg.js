@@ -72,6 +72,53 @@ LEFT JOIN LATERAL (
         `LEFT JOIN ${node.name} AS "${node.as}" ON ${joinCondition}`
       )
     // this condition is through a join table (many-to-many relations)
+    } else if (node.joinTable && node.paginate) {
+      if (!node.sqlJoins) throw new Error('Must set "sqlJoins" for a join table.')
+      if (node.args && node.args.last) {
+        throw new Error('Backward pagination not supported with offsets. Consider using keyset pagination instead')
+      }
+      let orderCondition
+      if (typeof node.orderBy === 'object') {
+        const orderColumns = []
+        for (let column in node.orderBy) {
+          let direction = node.orderBy[column].toUpperCase()
+          if (direction !== 'ASC' && direction !== 'DESC') {
+            throw new Error (direction + ' is not a valid sorting direction')
+          }
+          orderColumns.push(`"${column}" ${direction}`)
+        }
+        orderCondition = orderColumns.join(', ')
+      } else if (typeof node.orderBy === 'string') {
+        orderCondition = `"${node.orderBy}"`
+      } else {
+        throw new Error('"orderBy" is required for pagination')
+      }
+      /*
+      const joinCondition = node.sqlJoin(`"${parent.as}"`, `"${node.as}"`)
+      const whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
+       */
+      const whereCondition = node.sqlJoins[0](`"${parent.as}"`, node.joinTable)
+      const joinCondition1 = node.sqlJoins[0](`"${parent.as}"`, `"${node.joinTableAs}"`)
+      const joinCondition2 = node.sqlJoins[1](`"${node.joinTableAs}"`, `"${node.as}"`)
+      let limit = 'ALL', offset = 0
+      if (node.args && node.args.first) {
+        limit = parseInt(node.args.first) + 1
+        if (node.args.after) {
+          offset = cursorToOffset(node.args.after) + 1
+        }
+      }
+      const join = `\
+LEFT JOIN LATERAL (
+  SELECT *, count(*) OVER () AS "$total"
+  FROM ${node.joinTable}
+  WHERE ${whereCondition}
+  ORDER BY ${orderCondition}
+  LIMIT ${limit} OFFSET ${offset}
+) AS "${node.joinTableAs}" ON ${joinCondition1}`
+      joins.push(
+        join,
+        `LEFT JOIN ${node.name} AS "${node.as}" ON ${joinCondition2}`
+      )
     } else if (node.joinTable) {
       if (!node.sqlJoins) throw new Error('Must set "sqlJoins" for a join table.')
       const joinCondition1 = node.sqlJoins[0](`"${parent.as}"`, `"${node.joinTableAs}"`)
@@ -130,8 +177,12 @@ FROM (
 
     break
   case 'column':
+    let parentTable = parent.as
+    if (node.name === '$total' && parent.joinTableAs) {
+      parentTable = parent.joinTableAs
+    }
     selections.push(
-      `"${parent.as}"."${node.name}" AS "${prefix + node.as}"`
+      `"${parentTable}"."${node.name}" AS "${prefix + node.as}"`
     )
     break
   case 'columnDeps':

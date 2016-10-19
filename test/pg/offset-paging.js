@@ -268,3 +268,34 @@ test('can handle deeply nested pagination', async t => {
   t.is(comments.edges.last().cursor, comments.pageInfo.endCursor)
 })
 
+test('handle a conection type with a many-to-many', async t => {
+  const query = `{
+    user(id: 2) {
+      following(first: 2, after:"${offsetToCursor(0)}") {
+        pageInfo {
+          hasNextPage
+          startCursor
+          endCursor
+        }
+        edges {
+          node {
+            id
+            fullName
+          }
+        }
+      }
+    }
+  }`
+  const { data, errors } = await run(query)
+  t.is(errors, undefined)
+  t.deepEqual(data.user.following.pageInfo, {
+    hasNextPage: true,
+    startCursor: offsetToCursor(1),
+    endCursor: offsetToCursor(2)
+  })
+  t.deepEqual(data.user.following.edges, [
+    { node: { id: toGlobalId('User', 2), fullName: 'Hudson Hyatt' } },
+    { node: { id: toGlobalId('User', 3), fullName: 'Coleman Abernathy' } }
+  ])
+})
+
