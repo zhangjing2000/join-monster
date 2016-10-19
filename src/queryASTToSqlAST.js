@@ -2,22 +2,22 @@ import assert from 'assert'
 import AliasNamespace from './aliasNamespace'
 
 
-export function queryASTToSqlAST(ast, options) {
+export function queryASTToSqlAST(resolveInfo, options) {
   // this is responsible for all the logic regarding creating SQL aliases
   // we need varying degrees of uniqueness and readability
   const namespace = new AliasNamespace(options.minify)
 
   // we'll build up the AST representing the SQL recursively
   const sqlAST = {}
-  assert.equal(ast.fieldASTs.length, 1, 'We thought this would always have a length of 1. FIX ME!!')
+  assert.equal(resolveInfo.fieldASTs.length, 1, 'We thought this would always have a length of 1. FIX ME!!')
 
   // this represents the parsed query
-  const queryAST = ast.fieldASTs[0]
-  // ast.parentType is from the schema, its the GraphQLObjectType that is parent to the current field
+  const queryAST = resolveInfo.fieldASTs[0]
+  // resolveInfo.parentType is from the schema, its the GraphQLObjectType that is parent to the current field
   // this allows us to get the field definition of the current field so we can grab that extra metadata
   // e.g. sqlColumn or sqlJoin, etc.
-  const parentType = ast.parentType
-  getGraphQLType(queryAST, parentType, sqlAST, ast.fragments, namespace, options)
+  const parentType = resolveInfo.parentType
+  getGraphQLType(queryAST, parentType, sqlAST, resolveInfo.fragments, namespace, options)
 
   // make sure each "sqlDep" is only specified once at each level. also assign it an alias
   pruneDuplicateSqlDeps(sqlAST, namespace)
@@ -99,12 +99,7 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, fragments, namesp
   if (queryASTNode.arguments.length) {
     const args = sqlASTNode.args = {}
     for (let arg of queryASTNode.arguments) {
-      let value = arg.value.value
-      // TODO parse other kinds of variables
-      if (arg.value.kind === 'IntValue') {
-        value = parseInt(value)
-      }
-      args[arg.name.value] = value
+      args[arg.name.value] = parseArgValue(arg.value)
     }
   }
 
@@ -162,7 +157,7 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, fragments, namesp
   }
 }
 
-// the selections could be several types, handle each type here
+// the selections could be several types, recursively handle each type here
 function handleSelections(children, selections, gqlType, fragments, namespace, options) {
   for (let selection of selections) {
     // we need to figure out what kind of selection this is
@@ -246,5 +241,14 @@ export function pruneDuplicateSqlDeps(sqlAST, namespace) {
     newNode.names[name] = namespace.generate('column', name)
   })
   children.push(newNode)
+}
+
+function parseArgValue(value) {
+  let primitive = value.value
+  // TODO parse other kinds of variables
+  if (value.kind === 'IntValue') {
+    primitive = parseInt(primitive)
+  }
+  return primitive
 }
 

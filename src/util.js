@@ -14,15 +14,3 @@ export function validateSqlAST(topNode) {
   assert(topNode.sqlJoin == null)
 }
 
-export function base64(str) {
-  return new Buffer(str).toString('base64')
-}
-
-export function parseCursor(opaque) {
-  const clear = new Buffer(opaque, 'base64').toString()
-  const [ _, value ] = clear.split(':')
-  if (!_ || !value) {
-    throw new Error('invalid cursor format')
-  }
-  return value
-}
