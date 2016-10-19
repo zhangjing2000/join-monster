@@ -14,9 +14,12 @@ deploy:
 services:
   - postgresql
 before_script:
+  # create the databases
   - psql -c 'CREATE DATABASE test1;' -U postgres
   - psql -c 'CREATE DATABASE test2;' -U postgres
   - psql -c 'CREATE DATABASE test3;' -U postgres
   - psql -c 'CREATE DATABASE demo;' -U postgres
+  # populate them with data
+  - npm run db-build
 env:
   - PG_URL='postgres://postgres@localhost/'
