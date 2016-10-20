@@ -122,44 +122,10 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, fragments, namesp
   // tables have child fields, lets push them to an array
   const children = sqlASTNode.children = []
 
-  // the NestHydrationJS library only treats the first column as the unique identifier, therefore we
-  // need whichever column that the schema specifies as the unique one to be the first child
-  if (!config.uniqueKey) {
-    throw new Error(`You must specify the "uniqueKey" on the GraphQLObjectType definition of ${config.sqlTable}`)
-  }
-  if (typeof config.uniqueKey === 'string') {
-    children.push({
-      type: 'column',
-      name: config.uniqueKey,
-      fieldName: config.uniqueKey,
-      as: namespace.generate('column', config.uniqueKey)
-    })
-  } else if (Array.isArray(config.uniqueKey)) {
-    const clumsyName = config.uniqueKey.join('#') // need a name for this column, smash the individual column names together
-    children.push({
-      type: 'composite',
-      name: config.uniqueKey,
-      fieldName: clumsyName,
-      as: namespace.generate('column', clumsyName)
-    })
-  }
+  handleUniqueKey(config, children, namespace)
 
-  if (sqlASTNode.paginate && sqlASTNode.sortKey) {
-    for (let column of wrap(sqlASTNode.sortKey.key)) {
-      children.push({
-        type: 'column',
-        name: column,
-        fieldName: column,
-        as: namespace.generate('column', column)
-      })
-    }
-  } else if (sqlASTNode.paginate && sqlASTNode.orderBy) {
-    children.push({
-      type: 'column',
-      name: '$total',
-      fieldName: '$total',
-      as: namespace.generate('column', '$total')
-    })
+  if (sqlASTNode.paginate) {
+    handleColumnsRequiredForPagination(sqlASTNode, namespace)
   }
 
   if (queryASTNode.selectionSet) {
@@ -201,6 +167,62 @@ function handleSelections(children, selections, gqlType, fragments, namespace, o
   }
 }
 
+function handleUniqueKey(config, children, namespace) {
+  // the NestHydrationJS library only treats the first column as the unique identifier, therefore we
+  // need whichever column that the schema specifies as the unique one to be the first child
+  if (!config.uniqueKey) {
+    throw new Error(`You must specify the "uniqueKey" on the GraphQLObjectType definition of ${config.sqlTable}`)
+  }
+  if (typeof config.uniqueKey === 'string') {
+    children.push({
+      type: 'column',
+      name: config.uniqueKey,
+      fieldName: config.uniqueKey,
+      as: namespace.generate('column', config.uniqueKey)
+    })
+  } else if (Array.isArray(config.uniqueKey)) {
+    const clumsyName = config.uniqueKey.join('#') // need a name for this column, smash the individual column names together
+    children.push({
+      type: 'composite',
+      name: config.uniqueKey,
+      fieldName: clumsyName,
+      as: namespace.generate('column', clumsyName)
+    })
+  }
+}
+
+function handleColumnsRequiredForPagination(sqlASTNode, namespace) {
+  if (sqlASTNode.sortKey) {
+    // this type of paging uses the "sort key(s)". we need to get this in order to generate the cursor
+    for (let column of wrap(sqlASTNode.sortKey.key)) {
+      const newChild = {
+        type: 'column',
+        name: column,
+        fieldName: column,
+        as: namespace.generate('column', column)
+      }
+      // if this joining on a "through-table", the sort key is on the threw table instead of this node's parent table
+      if (sqlASTNode.joinTable) {
+        newChild.fromOtherTable = sqlASTNode.joinTableAs
+      }
+      sqlASTNode.children.push(newChild)
+    }
+  } else if (sqlASTNode.orderBy) {
+    // this type of paging can visit arbitrary pages, so lets provide the total number of items
+    // on this special "$total" column which we will compute in the query
+    const newChild = {
+      type: 'column',
+      name: '$total',
+      fieldName: '$total',
+      as: namespace.generate('column', '$total')
+    }
+    if (sqlASTNode.joinTable) {
+      newChild.fromOtherTable = sqlASTNode.joinTableAs
+    }
+    sqlASTNode.children.push(newChild)
+  }
+}
+
 function stripRelayConnection(field, queryASTNode) {
   // get the GraphQL Type inside the list of edges inside the Node from the schema definition
   const gqlType = field.type._fields.edges.type.ofType._fields.node.type
@@ -217,7 +239,6 @@ function stripRelayConnection(field, queryASTNode) {
   queryASTNode.arguments = args
   return { gqlType, queryASTNode }
 }
-
 
 function stripNonNullType(type) {
   return type.constructor.name === 'GraphQLNonNull' ? type.ofType : type

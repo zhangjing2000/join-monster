@@ -223,6 +223,31 @@ test('can handle nested pagination', async t => {
   t.is(data.users.edges[0].node.posts.edges[0].node.body, 'Adipisci voluptate laborum minima sunt facilis sint quibusdam ut. Deserunt nemo pariatur sed facere accusantium quis. Nobis aut voluptate inventore quidem explicabo.')
 })
 
+test('can go to each second page in a nested connection', async t => {
+  const query = `{
+    users(first: 2) {
+      edges {
+        node {
+          id
+          fullName
+          posts(first: 2, after: "${offsetToCursor(1)}") {
+            edges {
+              cursor
+              node { id, body }
+            }
+          }
+        }
+      }
+    }
+  }`
+  const { data, errors } = await run(query)
+  t.is(errors, undefined)
+  t.is(data.users.edges[0].node.id, toGlobalId('User', 1))
+  t.deepEqual(data.users.edges[0].node.posts.edges.map(edge => edge.node.id), [ toGlobalId('Post', 33), toGlobalId('Post', 38)])
+  t.is(data.users.edges[1].node.id, toGlobalId('User', 2))
+  t.deepEqual(data.users.edges[1].node.posts.edges.map(edge => edge.node.id), [ toGlobalId('Post', 1), toGlobalId('Post', 50)])
+})
+
 test('can handle deeply nested pagination', async t => {
   const query = `{
     users(first: 1) {

@@ -21,11 +21,21 @@ function postProcess(data, sqlAST) {
       hasPreviousPage: false
     }
     if (sqlAST.args && sqlAST.args.first) {
+      // we fetched an extra one in order to determine if there is a next page, if there is one, pop off that extra
       if (data.length > sqlAST.args.first) {
         pageInfo.hasNextPage = true
         data.pop()
       }
+    } else if (sqlAST.args && sqlAST.args.last) {
+      // if backward paging, do the same, but also reverse it
+      if (data.length > sqlAST.args.last) {
+        pageInfo.hasPreviousPage = true
+        data.pop()
+      }
+      data.reverse()
     }
+    // convert nodes to edges and compute the cursor for each
+    // TODO: only compute all the cursor if asked for them
     const edges = data.map(obj => {
       const cursor = {}
       const key = sqlAST.sortKey.key
@@ -34,8 +44,10 @@ function postProcess(data, sqlAST) {
       }
       return { cursor: objToCursor(cursor), node: obj }
     })
-    pageInfo.startCursor = edges[0].cursor
-    pageInfo.endCursor = last(edges).cursor
+    if (data.length) {
+      pageInfo.startCursor = edges[0].cursor
+      pageInfo.endCursor = last(edges).cursor
+    }
     return { edges, pageInfo }
   } else if (sqlAST.paginate && sqlAST.orderBy) {
     let offset = 0

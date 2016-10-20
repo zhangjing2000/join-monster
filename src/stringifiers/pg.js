@@ -40,13 +40,14 @@ function _stringifySqlAST(parent, node, prefix, context, selections, joins, wher
 
       // do we need to paginate? if so this will be a lateral join
       if (node.paginate) {
+        let whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
+
         if (node.sortKey) {
-          let whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
+
           const { limit, orderCondition, whereCondition: whereAddendum } = interpretForKeysetPaging(node)
           if (whereAddendum) {
             whereCondition += ' AND ' + whereAddendum
           }
-
           const join = `\
 LEFT JOIN LATERAL (
   SELECT * FROM ${node.name}
@@ -55,9 +56,10 @@ LEFT JOIN LATERAL (
   LIMIT ${limit}
 ) AS "${node.as}" ON ${joinCondition}`
           joins.push(join)
+
         } else if (node.orderBy) {
+
           const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
-          const whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
           const join = `\
 LEFT JOIN LATERAL (
   SELECT *, count(*) OVER () AS "$total"
@@ -83,9 +85,27 @@ LEFT JOIN LATERAL (
       const joinCondition2 = node.sqlJoins[1](`"${node.joinTableAs}"`, `"${node.as}"`)
 
       if (node.paginate) {
-        const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
-        const whereCondition = node.sqlJoins[0](`"${parent.as}"`, node.joinTable)
-        const join = `\
+
+        if (node.sortKey) {
+          let whereCondition = node.sqlJoins[0](`"${parent.as}"`, node.joinTable)
+          const { limit, orderCondition, whereCondition: whereAddendum } = interpretForKeysetPaging(node)
+          if (whereAddendum) {
+            whereCondition += ' AND ' + whereAddendum
+          }
+          const join = `\
+LEFT JOIN LATERAL (
+  SELECT * FROM ${node.joinTable}
+  WHERE ${whereCondition}
+  ORDER BY ${orderCondition}
+  LIMIT ${limit}
+) AS "${node.joinTableAs}" ON ${joinCondition1}`
+          joins.push(join)
+
+        } else if (node.orderBy) {
+
+          const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
+          const whereCondition = node.sqlJoins[0](`"${parent.as}"`, node.joinTable)
+          const join = `\
 LEFT JOIN LATERAL (
   SELECT *, count(*) OVER () AS "$total"
   FROM ${node.joinTable}
@@ -93,9 +113,9 @@ LEFT JOIN LATERAL (
   ORDER BY ${orderCondition}
   LIMIT ${limit} OFFSET ${offset}
 ) AS "${node.joinTableAs}" ON ${joinCondition1}`
-        joins.push(
-          join
-        )
+          joins.push(join)
+        }
+
       } else {
         joins.push(
           `LEFT JOIN ${node.joinTable} AS "${node.joinTableAs}" ON ${joinCondition1}`
@@ -142,15 +162,7 @@ FROM (
 
     break
   case 'column':
-    let parentTable = parent.as
-    
-    // this is hacky. all the selections are made from their parent table, except for one.
-    // when its a meny-to-many and we're paginating and we need to $total, it is calculated from the intermediate join table.
-    // so we have to switch the parent table to that join table.
-    if (node.name === '$total' && parent.joinTableAs) {
-      parentTable = parent.joinTableAs
-    }
-
+    let parentTable = node.fromOtherTable || parent.as
     selections.push(
       `"${parentTable}"."${node.name}" AS "${prefix + node.as}"`
     )
