@@ -1,5 +1,6 @@
 import assert from 'assert'
 import AliasNamespace from './aliasNamespace'
+import { wrap } from './util'
 
 
 export function queryASTToSqlAST(resolveInfo, options) {
@@ -143,7 +144,16 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, fragments, namesp
     })
   }
 
-  if (sqlASTNode.paginate) {
+  if (sqlASTNode.paginate && sqlASTNode.sortKey) {
+    for (let column of wrap(sqlASTNode.sortKey.key)) {
+      children.push({
+        type: 'column',
+        name: column,
+        fieldName: column,
+        as: namespace.generate('column', column)
+      })
+    }
+  } else if (sqlASTNode.paginate && sqlASTNode.orderBy) {
     children.push({
       type: 'column',
       name: '$total',

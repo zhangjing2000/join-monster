@@ -1,4 +1,5 @@
 import { connectionFromArraySlice, cursorToOffset } from 'graphql-relay'
+import { objToCursor, wrap, last } from './util'
 
 // a function for data manipulation AFTER its nested.
 // this is only necessary when using the SQL pagination
@@ -14,7 +15,29 @@ function postProcess(data, sqlAST) {
     recurseOnObjInData(data, astChild)
   }
   // is cases where pagination was done, take the data and convert to the connection object
-  if (sqlAST.paginate && sqlAST.orderBy) {
+  if (sqlAST.paginate && sqlAST.sortKey) {
+    const pageInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false
+    }
+    if (sqlAST.args && sqlAST.args.first) {
+      if (data.length > sqlAST.args.first) {
+        pageInfo.hasNextPage = true
+        data.pop()
+      }
+    }
+    const edges = data.map(obj => {
+      const cursor = {}
+      const key = sqlAST.sortKey.key
+      for (let column of wrap(key)) {
+        cursor[column] = obj[column]
+      }
+      return { cursor: objToCursor(cursor), node: obj }
+    })
+    pageInfo.startCursor = edges[0].cursor
+    pageInfo.endCursor = last(edges).cursor
+    return { edges, pageInfo }
+  } else if (sqlAST.paginate && sqlAST.orderBy) {
     let offset = 0
     if (sqlAST.args && sqlAST.args.after) {
       offset = cursorToOffset(sqlAST.args.after) + 1

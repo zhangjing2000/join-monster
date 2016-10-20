@@ -1,4 +1,4 @@
-import { validateSqlAST, inspect } from '../util'
+import { validateSqlAST, inspect, cursorToObj, wrap } from '../util'
 import { cursorToOffset } from 'graphql-relay'
 
 export default function stringifySqlAST(topNode, context) {
@@ -40,9 +40,25 @@ function _stringifySqlAST(parent, node, prefix, context, selections, joins, wher
 
       // do we need to paginate? if so this will be a lateral join
       if (node.paginate) {
-        const { limit, offset, orderCondition } = interpretArgs(node)
-        const whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
-        const join = `\
+        if (node.sortKey) {
+          let whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
+          const { limit, orderCondition, whereCondition: whereAddendum } = interpretForKeysetPaging(node)
+          if (whereAddendum) {
+            whereCondition += ' AND ' + whereAddendum
+          }
+
+          const join = `\
+LEFT JOIN LATERAL (
+  SELECT * FROM ${node.name}
+  WHERE ${whereCondition}
+  ORDER BY ${orderCondition}
+  LIMIT ${limit}
+) AS "${node.as}" ON ${joinCondition}`
+          joins.push(join)
+        } else if (node.orderBy) {
+          const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
+          const whereCondition = node.sqlJoin(`"${parent.as}"`, node.name)
+          const join = `\
 LEFT JOIN LATERAL (
   SELECT *, count(*) OVER () AS "$total"
   FROM ${node.name}
@@ -50,7 +66,8 @@ LEFT JOIN LATERAL (
   ORDER BY ${orderCondition}
   LIMIT ${limit} OFFSET ${offset}
 ) AS "${node.as}" ON ${joinCondition}`
-        joins.push(join)
+          joins.push(join)
+        }
 
       // otherwite, just a regular left join on the table
       } else {
@@ -66,7 +83,7 @@ LEFT JOIN LATERAL (
       const joinCondition2 = node.sqlJoins[1](`"${node.joinTableAs}"`, `"${node.as}"`)
 
       if (node.paginate) {
-        const { limit, offset, orderCondition } = interpretArgs(node)
+        const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
         const whereCondition = node.sqlJoins[0](`"${parent.as}"`, node.joinTable)
         const join = `\
 LEFT JOIN LATERAL (
@@ -90,15 +107,27 @@ LEFT JOIN LATERAL (
 
     // otherwise, we aren't joining, so we are at the "root", and this is the start of the FROM clause
     } else if (node.paginate) {
-      const { limit, offset, orderCondition } = interpretArgs(node)
-      const join = `\
+      if (node.sortKey) {
+        const { limit, orderCondition, whereCondition } = interpretForKeysetPaging(node)
+        const join = `\
+FROM (
+  SELECT * FROM ${node.name}
+  WHERE ${whereCondition || 'TRUE'}
+  ORDER BY ${orderCondition}
+  LIMIT ${limit}
+) AS "${node.as}"`
+        joins.push(join)
+      } else if (node.orderBy) {
+        const { limit, offset, orderCondition } = interpretForOffsetPaging(node)
+        const join = `\
 FROM (
   SELECT *, count(*) OVER () AS "$total"
   FROM ${node.name}
   ORDER BY ${orderCondition}
   LIMIT ${limit} OFFSET ${offset}
 ) AS "${node.as}"`
-      joins.push(join)
+        joins.push(join)
+      }
     } else {
       // otherwise, this table is not being joined, its the first one and it goes in the "FROM" clause
       joins.push(
@@ -152,7 +181,7 @@ FROM (
 }
 
 // find out what the limit, offset, order by parts should be from the relay connection args if we're paginating
-function interpretArgs(node) {
+function interpretForOffsetPaging(node) {
   if (node.args && node.args.last) {
     throw new Error('Backward pagination not supported with offsets. Consider using keyset pagination instead')
   }
@@ -181,5 +210,56 @@ function interpretArgs(node) {
     }
   }
   return { limit, offset, orderCondition }
+}
+
+function interpretForKeysetPaging(node) {
+  let orderCondition
+  let descending = node.sortKey.order.toUpperCase() === 'DESC'
+  // flip the sort order if doing backwards paging
+  if (node.args && node.args.last) {
+    descending = !descending
+  }
+  const orderColumns = []
+  for (let column of wrap(node.sortKey.key)) {
+    orderColumns.push(`"${column}" ${descending ? 'DESC' : 'ASC'}`)
+  }
+  orderCondition = orderColumns.join(', ')
+
+  let limit = 'ALL', whereCondition = ''
+  if (node.args && node.args.first) {
+    limit = parseInt(node.args.first) + 1
+    if (node.args.after) {
+      whereCondition = sortKeyToWhereCondition(cursorToObj(node.args.after), descending)
+    }
+    if (node.args.before) {
+      throw new Error('Using "before" with "first" is nonsensical.')
+    }
+  } else if (node.args && node.args.last) {
+    limit = parseInt(node.args.last) + 1
+    if (node.args.before) {
+      whereCondition = sortKeyToWhereCondition(cursorToObj(node.args.before), descending)
+    }
+    if (node.args.after) {
+      throw new Error('Using "after" with "last" is nonsensical.')
+    }
+  }
+
+  return { limit, orderCondition, whereCondition }
+}
+
+function sortKeyToWhereCondition(keyObj, descending) {
+  const sortColumns = []
+  const sortValues = []
+  for (let key in keyObj) {
+    sortColumns.push(`"${key}"`)
+    sortValues.push(maybeQuote(keyObj[key]))
+  }
+  const operator = descending ? '<' : '>'
+  return `(${sortColumns.join(', ')}) ${operator} (${sortValues.join(', ')})`
+}
+
+// wrap in a pair of single quotes for the SQL if needed
+function maybeQuote(value) {
+  return typeof value === 'number' ? value : `'${value}'`
 }
 
