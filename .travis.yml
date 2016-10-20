@@ -1,5 +1,8 @@
 language: node_js
 node_js: stable
+sudo: required
+# this distro has postgres 9.5 unlike the default (at the time i wrote this)
+dist: trusty
 
 deploy:
   - provider: npm
