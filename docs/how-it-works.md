@@ -55,6 +55,8 @@ Also notice the `immortal` field, which does have a resolver. This field demonst
 
 ## Calling the Function
 
+The data for any field, along with all of its descendants, can be fetched by calling `joinMonster`, the function that you import from the module. All you have to do is pass it the `resolveInfo`, the 4th parameter of the resolve function. You then write a callback to receive the generated SQL, call your database, and return the raw data. Join Monster will take it from there and return the shaped data.
+
 ```javascript
 users: {
   type: new GraphQLList(User),
