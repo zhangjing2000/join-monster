@@ -290,9 +290,11 @@ test('can handle deeply nested pagination', async t => {
   t.deepEqual(comments.edges[0], {
     cursor: offsetToCursor(0),
     node: {
-      id: toGlobalId('Comment', 116),
-      body: 'The SQL sensor is down, connect the wireless firewall so we can override the SQL monitor!',
-      author: { fullName: 'Hudson Hyatt' }
+      id: toGlobalId('Comment', 18),
+      body: 'bypassing the hard drive won\'t do anything, we need to back up the primary EXE bandwidth!',
+      author: {
+        fullName: 'Coleman Abernathy'
+      }
     }
   })
   t.is(comments.edges.last().cursor, comments.pageInfo.endCursor)

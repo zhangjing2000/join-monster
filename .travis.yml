@@ -1,8 +1,5 @@
 language: node_js
 node_js: stable
-sudo: required
-# this distro has postgres 9.5 unlike the default (at the time i wrote this)
-dist: trusty
 
 deploy:
   - provider: npm
@@ -20,7 +17,7 @@ services:
   - postgresql
 addons:
   # default postgres version is 9.1, which lacks the features we need
-  postgresql: "9.5"
+  postgresql: "9.4"
 before_script:
   # create the databases
   - psql -c "CREATE DATABASE test1 LC_COLLATE 'en_US.UTF-8';" -U postgres

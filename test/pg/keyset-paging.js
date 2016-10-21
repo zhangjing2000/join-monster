@@ -289,17 +289,19 @@ test('can handle deeply nested pagination', async t => {
   const comments = data.users.edges[0].node.posts.edges[0].node.comments
   const expect = {
     hasNextPage: true,
-    startCursor: objToCursor({ id: 116 }),
-    endCursor: objToCursor({ id: 233 })
+    startCursor: objToCursor({ id: 233 }),
+    endCursor: objToCursor({ id: 116 })
   }
   t.deepEqual(comments.pageInfo, expect)
   t.is(comments.edges.length, 3)
   t.deepEqual(comments.edges[0], {
-    cursor: objToCursor({ id: 116 }),
+    cursor: objToCursor({ id: 233 }),
     node: {
-      id: toGlobalId('Comment', 116),
-      body: 'The SQL sensor is down, connect the wireless firewall so we can override the SQL monitor!',
-      author: { fullName: 'Hudson Hyatt' }
+      id: toGlobalId('Comment', 233),
+      body: 'I\'ll reboot the digital SCSI system, that should bus the USB protocol!',
+      author: {
+        fullName: 'Coleman Abernathy'
+      }
     }
   })
   t.is(comments.edges.last().cursor, comments.pageInfo.endCursor)
