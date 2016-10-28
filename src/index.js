@@ -135,7 +135,7 @@ function handleUserDbCall(dbCall, sql, shapeDefinition, sqlAST) {
   if (typeof result.then === 'function') {
     return result.then(rows => {
       rows = validate(rows)
-      debug(emphasize('RAW DATA'), inspect(rows.slice(0, 8)))
+      debug(emphasize('RAW_DATA'), inspect(rows.slice(0, 8)))
       debug(`${rows.length} rows...`)
       const nested = nest(rows, shapeDefinition)
       return postProcess(nested, sqlAST)
@@ -149,7 +149,13 @@ function handleUserDbCall(dbCall, sql, shapeDefinition, sqlAST) {
 // validate the data they gave us
 function validate(rows) {
   // its supposed to be an array of objects
-  if (Array.isArray(rows)) return rows
+  if (Array.isArray(rows)) {
+    // this is for supporting mysql dialet, which will return array of two arrays, one with raw data array, the other is the column definition array
+    if (Array.isArray(rows[0]))
+      return rows[0]
+    else
+      return rows
+  }
   // a check for the most common error. a lot of ORMs return an object with the desired data on the `rows` property
   else if (rows && rows.rows) return rows.rows
   else {
@@ -160,4 +166,3 @@ function validate(rows) {
 // expose the package version for debugging
 joinMonster.version = require('../package.json').version
 export default joinMonster
-
