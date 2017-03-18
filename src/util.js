@@ -138,7 +138,13 @@ export function handleUserDbCall(dbCall, sql, shapeDefinition) {
 // validate the data they gave us
 function validate(rows) {
   // its supposed to be an array of objects
-  if (Array.isArray(rows)) return rows
+  if (Array.isArray(rows)) {
+    // this is for supporting mysql dialet, which will return array of two arrays, one with raw data array, the other is the column definition array
+    if (Array.isArray(rows[0]))
+      return rows[0]
+    else
+      return rows
+  }
   // a check for the most common error. a lot of ORMs return an object with the desired data on the `rows` property
   else if (rows && rows.rows) return rows.rows
   else {
@@ -164,4 +170,3 @@ export async function compileSqlAST(sqlAST, context, options) {
   debug(emphasize('SHAPE_DEFINITION'), inspect(shapeDefinition))
   return { sql, shapeDefinition }
 }
-
