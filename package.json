@@ -1,7 +1,7 @@
 {
   "name": "join-monster",
-  "version": "0.4.2",
-  "description": "A GraphQL-to-SQL query execution layer for batch data fetching.",
+  "version": "1.2.0-beta.1",
+  "description": "A GraphQL to SQL query execution layer for batch data fetching.",
   "main": "dist/index.js",
   "engines": {
     "node": ">=6.0.0"
@@ -10,24 +10,29 @@
     "dist/"
   ],
   "scripts": {
-    "build": "babel src --no-comments --out-dir dist",
+    "build": "rm -rf dist && babel src --no-comments --out-dir dist",
     "watch": "babel src --watch --out-dir dist",
-    "test": "npm run lint && npm run teststandard && npm run testpg && MINIFY=1 npm run testpg",
-    "teststandard": "NODE_ENV=test ava test/*.js",
-    "testpg": "NODE_ENV=test DB=PG ava test/*.js test/pg/*.js",
+    "test": "npm run lint && bin/test --no-oracle",
+    "testsqlite3": "NODE_ENV=test ava test/*.js",
+    "testpg": "NODE_ENV=test DB=PG ava test/*.js",
+    "testpg-paging": "NODE_ENV=test DB=PG PAGINATE=keyset ava test/pagination/keyset-paging.js && NODE_ENV=test DB=PG PAGINATE=offset ava test/pagination/offset-paging.js",
+    "testoracle": "NODE_ENV=test DB=ORACLE ava test/*.js",
+    "testoracle-paging": "NODE_ENV=test DB=ORACLE PAGINATE=offset ava test/pagination/offset-paging.js && NODE_ENV=test DB=ORACLE PAGINATE=keyset ava test/pagination/keyset-paging.js",
+    "testmysql": "NODE_ENV=test DB=MYSQL ava test/*.js",
+    "testmysql-paging": "NODE_ENV=test DB=MYSQL PAGINATE=offset ava test/pagination/offset-paging.js && NODE_ENV=test DB=MYSQL PAGINATE=keyset ava test/pagination/keyset-paging.js",
     "coverage": "nyc --reporter=html npm run test",
     "lint": "eslint src test",
-    "start": "babel-watch ./example/server.js",
+    "start": "babel-watch ./test-api/server.js",
     "docs": "mkdocs serve",
-    "jsdoc": "jsdoc2md src/index.js | sed '/\\*\\*Kind\\*\\*:/d' > docs/API.md",
+    "jsdoc": "babel src/index.js -o temp.js && (jsdoc2md temp.js | sed '/\\*\\*Kind\\*\\*:/d' > docs/API.md) && rm temp.js",
     "prepublish": "in-publish && /bin/sh ./scripts/prepublish.sh && npm run build || not-in-publish",
     "preversion": ". ./scripts/checkgit.sh && npm test",
-    "db-build": "babel-node example/data/build.js",
-    "db-shell": "sqlite3 --column --header example/data/demo-data.sl3"
+    "db-build": "TZ=UTC babel-node test-api/data/build.js",
+    "db-shell": "sqlite3 --column --header test-api/data/db/demo-data.sl3"
   },
   "ava": {
     "concurrency": 10,
-    "verbose": true,
+    "verbose": false,
     "failFast": true,
     "require": "babel-register",
     "babel": {
@@ -36,7 +41,7 @@
   },
   "nyc": {
     "include": [
-      "src/*.js"
+      "src/**/*.js"
     ]
   },
   "repository": {
@@ -46,12 +51,11 @@
   "keywords": [
     "graphql",
     "sql",
+    "join",
     "query",
     "batch",
     "data",
-    "schema",
-    "compile",
-    "translate"
+    "schema"
   ],
   "author": "Stem Disintermedia, Inc.",
   "contributors": [
@@ -64,35 +68,37 @@
   },
   "homepage": "https://github.com/stems/join-monster#readme",
   "peerDependencies": {
-    "graphql": "0.x"
+    "graphql": "0.6 || 0.7 || 0.8 || 0.9"
   },
   "devDependencies": {
-    "ava": "^0.16.0",
+    "ava": "^0.18.0",
     "babel-cli": "^6.14.0",
     "babel-eslint": "^7.0.0",
     "babel-preset-node6": "^11.0.0",
     "babel-preset-stage-0": "^6.5.0",
     "babel-watch": "^2.0.3-rc0",
     "eslint": "^3.9.0",
-    "faker": "^3.1.0",
-    "graphql": "^0.7.0",
-    "graphsiql": "0.0.3",
+    "faker": "^4.1.0",
+    "graphql": "^0.9.0",
+    "graphsiql": "0.0.4",
     "in-publish": "^2.0.0",
-    "jsdoc-to-markdown": "^2.0.1",
+    "jsdoc-to-markdown": "^3.0.0",
     "knex": "^0.12.0",
-    "koa": "^1.2.4",
+    "koa": "^2.0.1",
+    "koa-cors": "0.0.16",
     "koa-custom-graphiql": "0.0.3",
-    "koa-graphql": "^0.5.6",
+    "koa-graphql": "^0.6.0",
     "koa-router": "^5.4.0",
-    "koa-static": "^2.0.0",
-    "nyc": "^8.3.2",
+    "koa-static": "^3.0.0",
+    "mysql": "^2.12.0",
+    "nyc": "^10.0.0",
     "pg": "^6.1.0",
-    "sinon": "^1.17.6",
+    "sinon": "^2.0.0",
     "sqlite3": "^3.1.8"
   },
   "dependencies": {
     "generatorics": "^1.0.8",
-    "graphql-relay": "^0.4.3",
-    "nesthydrationjs": "^0.4.0"
+    "graphql-relay": "^0.5.0",
+    "nesthydrationjs": "0.4.0"
   }
 }

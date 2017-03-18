@@ -1,37 +1,41 @@
 import test from 'ava'
 import { graphql } from 'graphql'
-import schemaRelay from '../example/schema-relay-standard/index'
+import { toGlobalId, offsetToCursor } from 'graphql-relay'
+import schemaRelay from '../test-api/schema-paginated/index'
 import { partial } from 'lodash'
 
 
 const run = partial(graphql, schemaRelay)
 
+const user1Id = toGlobalId('User', 1)
+const cursor0 = offsetToCursor(0)
+
 test('it should get a globalId', async t => {
   const query = `{
-    users { id }
+    user(id:1) { id }
   }`
   const { data, errors } = await run(query)
   t.is(errors, undefined)
-  const expect = { users: [ { id: 'VXNlcjox' }, { id: 'VXNlcjoy' } ] }
-  t.deepEqual(data, expect)
+  const expect = { user: { id: user1Id } }
+  t.deepEqual(expect, data)
 })
 
 test('it should fetch a Node type with inline fragments', async t => {
   const query = `{
-    node(id: "UG9zdDox") {
+    node(id: "${toGlobalId('Post', 1)}") {
       ... on Post { body }
     }
   }`
   const { data, errors } = await run(query)
   t.is(errors, undefined)
   const expect = { node: { body: 'If I could marry a programming language, it would be Haskell.' } }
-  t.deepEqual(data, expect)
+  t.deepEqual(expect, data)
 })
 
 test('it should fetch a Node type with named fragments', async t => {
   const query = `
     {
-      node(id: "VXNlcjox") {
+      node(id: "${user1Id}") {
         ...F0
       }
     }
@@ -52,7 +56,47 @@ test('it should fetch a Node type with named fragments', async t => {
       }
     }
   }
-  t.deepEqual(data, expect)
+  t.deepEqual(expect, data)
+})
+
+test('it should fetch a Node type with a variable', async t => {
+  const query = `
+    query node($id: ID!){
+      node(id: $id) {
+        ...on User {
+          fullName
+        }
+      }
+    }
+  `
+  const variables = { id: user1Id }
+  const { data, errors } = await graphql(schemaRelay, query, null, null, variables)
+  t.is(errors, undefined)
+  const expect = {
+    node: {
+      fullName: 'andrew carlson',
+    }
+  }
+  t.deepEqual(expect, data)
+})
+
+test('it should not error when no record is returned ', async t => {
+  const query = `
+    query node($id: ID!){
+      node(id: $id) {
+        ...on User {
+          fullName
+        }
+      }
+    }
+  `
+  const variables = { id: toGlobalId('User', 999) }
+  const { data, errors } = await graphql(schemaRelay, query, null, null, variables)
+  t.is(errors, undefined)
+  const expect = {
+    node: null
+  }
+  t.deepEqual(expect, data)
 })
 
 test('it should handle the relay connection type', async t => {
@@ -73,7 +117,7 @@ test('it should handle the relay connection type', async t => {
           }
         }
       }
-      comments(first: 2, after: "YXJyYXljb25uZWN0aW9uOjA=") {
+      comments(first: 2, after: "${cursor0}") {
         pageInfo {
           hasNextPage
           hasPreviousPage
@@ -98,13 +142,13 @@ test('it should handle the relay connection type', async t => {
         pageInfo: {
           hasNextPage: false,
           hasPreviousPage: false,
-          startCursor: 'YXJyYXljb25uZWN0aW9uOjA=',
-          endCursor: 'YXJyYXljb25uZWN0aW9uOjA='
+          startCursor: cursor0,
+          endCursor: cursor0
         },
         edges: [
           {
             node: {
-              id: 'UG9zdDoy',
+              id: toGlobalId('Post', 2),
               body: 'Check out this cool new GraphQL library, Join Monster.'
             }
           }
@@ -114,19 +158,19 @@ test('it should handle the relay connection type', async t => {
         pageInfo: {
           hasNextPage: true,
           hasPreviousPage: false,
-          startCursor: 'YXJyYXljb25uZWN0aW9uOjE=',
-          endCursor: 'YXJyYXljb25uZWN0aW9uOjI='
+          startCursor: offsetToCursor(1),
+          endCursor: offsetToCursor(2)
         },
         edges: [
           {
             node: {
-              id: 'Q29tbWVudDoy',
+              id: toGlobalId('Comment', 4),
               body: 'Do not forget to check out the demo.'
             }
           },
           {
             node: {
-              id: 'Q29tbWVudDoz',
+              id: toGlobalId('Comment', 6),
               body: 'Also, submit a PR if you have a feature you want to add.'
             }
           }
@@ -134,7 +178,7 @@ test('it should handle the relay connection type', async t => {
       }
     }
   }
-  t.deepEqual(data, expect)
+  t.deepEqual(expect, data)
 })
 
 test('it should handle nested connection types', async t => {
@@ -178,14 +222,14 @@ test('it should handle nested connection types', async t => {
         pageInfo: {
           hasPreviousPage: false,
           hasNextPage: false,
-          startCursor: 'YXJyYXljb25uZWN0aW9uOjA=',
-          endCursor: 'YXJyYXljb25uZWN0aW9uOjA='
+          startCursor: cursor0,
+          endCursor: cursor0
         },
         edges: [
           {
-            cursor: 'YXJyYXljb25uZWN0aW9uOjA=',
+            cursor: cursor0,
             node: {
-              id: 'UG9zdDoy',
+              id: toGlobalId('Post', 2),
               body: 'Check out this cool new GraphQL library, Join Monster.',
               comments: {
                 pageInfo: {
@@ -194,14 +238,14 @@ test('it should handle nested connection types', async t => {
                 edges: [
                   {
                     node: {
-                      id: 'Q29tbWVudDoy',
+                      id: toGlobalId('Comment', 4),
                       body: 'Do not forget to check out the demo.'
                     }
                   },
                   {
                     node: {
-                      id: 'Q29tbWVudDoz',
-                      body: 'Also, submit a PR if you have a feature you want to add.'
+                      id: toGlobalId('Comment', 5),
+                      body: 'This sucks. Go use REST you scrub.'
                     }
                   }
                 ]
@@ -209,6 +253,107 @@ test('it should handle nested connection types', async t => {
             }
           }
         ]
+      }
+    }
+  }
+  t.deepEqual(expect, data)
+})
+
+test('should handle a post without an author', async t => {
+  const query = `{
+    node(id: "${toGlobalId('Post', 4)}") {
+      id
+      ... on Post {
+        body
+        author {
+          id
+        }
+      }
+    }
+  }`
+  const { data, errors } = await run(query)
+  t.is(errors, undefined)
+  const expect = {
+    node: {
+      id: toGlobalId('Post', 4),
+      body: 'I have no valid author...',
+      author: null
+    }
+  }
+  t.deepEqual(expect, data)
+})
+
+test('should handle fragments recursively', async t => {
+  const query = `
+    {
+      user(id: 1) {
+        fullName
+        comments(first: 2, after: "YXJyYXljb25uZWN0aW9uOjA=") {
+          ... on CommentConnection {
+            ...commentInfo
+          }
+        }
+      }
+    }
+
+    fragment commentInfo on CommentConnection {
+      ...commentInfo2
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+      }
+    }
+
+    fragment commentInfo2 on CommentConnection {
+      edges {
+        ...commentInfo3
+      }
+    }
+
+    fragment commentInfo3 on CommentEdge {
+      node {
+        id
+        body
+        author {
+          ...userInfo
+        }
+      }
+    }
+
+    fragment userInfo on User {
+      fullName
+    }
+  `
+  const { data, errors } = await run(query)
+  t.is(errors, undefined)
+  const expect = {
+    user: {
+      fullName: 'andrew carlson',
+      comments: {
+        edges: [
+          {
+            node: {
+              id: 'Q29tbWVudDo0',
+              body: 'Do not forget to check out the demo.',
+              author: {
+                fullName: 'andrew carlson'
+              }
+            }
+          },
+          {
+            node: {
+              id: 'Q29tbWVudDo2',
+              body: 'Also, submit a PR if you have a feature you want to add.',
+              author: {
+                fullName: 'andrew carlson'
+              }
+            }
+          }
+        ],
+        pageInfo: {
+          hasNextPage: true,
+          hasPreviousPage: false
+        }
       }
     }
   }

@@ -1,10 +1,10 @@
-## Functions
+## Members
 
 <dl>
-<dt><a href="#joinMonster">joinMonster(resolveInfo, context, dbCall, [options])</a> ⇒ <code>Promise.&lt;Object&gt;</code></dt>
-<dd><p>Takes the GraphQL AST and returns a nest Object with the data.</p>
+<dt><a href="#joinMonster">joinMonster</a> ⇒ <code>Promise.&lt;Object&gt;</code></dt>
+<dd><p>Takes the GraphQL resolveInfo and returns a hydrated Object with the data.</p>
 </dd>
-<dt><a href="#getNode">getNode(typeName, resolveInfo, context, where, dbCall, [options])</a> ⇒ <code>Promise.&lt;Object&gt;</code></dt>
+<dt><a href="#getNode">getNode</a> ⇒ <code>Promise.&lt;Object&gt;</code></dt>
 <dd><p>A helper for resolving the Node type in Relay.</p>
 </dd>
 </dl>
@@ -12,10 +12,13 @@
 ## Typedefs
 
 <dl>
-<dt><a href="#dbCall">dbCall</a> ⇒ <code>Array</code> | <code>Promise.&lt;Array&gt;</code></dt>
+<dt><a href="#dbCall">dbCall</a> ⇒ <code>Promise.&lt;Array&gt;</code></dt>
 <dd><p>User-defined function that sends a raw SQL query to the databse.</p>
 </dd>
-<dt><a href="#where">where</a> ⇒ <code>String</code></dt>
+<dt><a href="#sqlExpr">sqlExpr</a> ⇒ <code>String</code> | <code>Promise.&lt;String&gt;</code></dt>
+<dd><p>Function for generating a SQL expression.</p>
+</dd>
+<dt><a href="#where">where</a> ⇒ <code>String</code> | <code>Promise.&lt;String&gt;</code></dt>
 <dd><p>Function for generating a <code>WHERE</code> condition.</p>
 </dd>
 <dt><a href="#sqlJoin">sqlJoin</a> ⇒ <code>String</code></dt>
@@ -25,8 +28,8 @@
 
 <a name="joinMonster"></a>
 
-## joinMonster(resolveInfo, context, dbCall, [options]) ⇒ <code>Promise.&lt;Object&gt;</code>
-Takes the GraphQL AST and returns a nest Object with the data.
+## joinMonster ⇒ <code>Promise.&lt;Object&gt;</code>
+Takes the GraphQL resolveInfo and returns a hydrated Object with the data.
 
 **Returns**: <code>Promise.&lt;Object&gt;</code> - The correctly nested data from the database.  
 
@@ -34,14 +37,14 @@ Takes the GraphQL AST and returns a nest Object with the data.
 | --- | --- | --- |
 | resolveInfo | <code>Object</code> | Contains the parsed GraphQL query, schema definition, and more. Obtained from the fourth argument to the resolver. |
 | context | <code>Object</code> | An arbitrary object that gets passed to the `where` function. Useful for contextual infomation that influeces the  `WHERE` condition, e.g. session, logged in user, localization. |
-| dbCall | <code>[dbCall](#dbCall)</code> | A function that is passed the compiled SQL that calls the database and returns (a promise of) the data. |
+| dbCall | <code>[dbCall](#dbCall)</code> | A function that is passed the compiled SQL that calls the database and returns a promise of the data. |
 | [options] | <code>Object</code> |  |
 | options.minify | <code>Boolean</code> | Generate minimum-length column names in the results table. |
-| options.dialect | <code>String</code> | The dialect of SQL your Database uses. Currently `'pg'` and `'standard'` are supported. |
+| options.dialect | <code>String</code> | The dialect of SQL your Database uses. Currently `'pg'`, `'oracle'`, `'mariadb'`, `'mysql'`, and `'sqlite3'` are supported. |
 
 <a name="getNode"></a>
 
-## getNode(typeName, resolveInfo, context, where, dbCall, [options]) ⇒ <code>Promise.&lt;Object&gt;</code>
+## getNode ⇒ <code>Promise.&lt;Object&gt;</code>
 A helper for resolving the Node type in Relay.
 
 **Returns**: <code>Promise.&lt;Object&gt;</code> - The correctly nested data from the database. The GraphQL Type is added to the "\_\_type\_\_" property, which is helpful for the `resolveType` function in the `nodeDefinitions` of **graphql-relay-js**.  
@@ -50,45 +53,62 @@ A helper for resolving the Node type in Relay.
 | --- | --- | --- |
 | typeName | <code>String</code> | The Name of the GraphQLObjectType |
 | resolveInfo | <code>Object</code> | Contains the parsed GraphQL query, schema definition, and more. Obtained from the fourth argument to the resolver. |
-| context | <code>Object</code> | An arbitrary object that gets passed to the where function. Useful for contextual infomation that influeces the  WHERE condition, e.g. session, logged in user, localization. |
-| where | <code>[where](#where)</code> | A function that returns the WHERE condition. |
+| context | <code>Object</code> | An arbitrary object that gets passed to the `where` function. Useful for contextual infomation that influeces the  WHERE condition, e.g. session, logged in user, localization. |
+| condition | <code>[where](#where)</code> &#124; <code>Number</code> &#124; <code>String</code> &#124; <code>Array</code> | A value to determine the `where` function for searching the node. If it's a function, that function will be used as the `where` function. Otherwise, it is assumed to be the value(s) of the `primaryKey`. An array of values is needed for composite primary keys. |
 | dbCall | <code>function</code> | A function that is passed the compiled SQL that calls the database and returns (a promise of) the data. |
 | [options] | <code>Object</code> | Same as `joinMonster` function's options. |
 
 <a name="dbCall"></a>
 
-## dbCall ⇒ <code>Array</code> &#124; <code>Promise.&lt;Array&gt;</code>
+## dbCall ⇒ <code>Promise.&lt;Array&gt;</code>
 User-defined function that sends a raw SQL query to the databse.
 
-**Returns**: <code>Array</code> &#124; <code>Promise.&lt;Array&gt;</code> - The raw data as a flat array of objects. Each object must represent a row from the result set.  
+**Returns**: <code>Promise.&lt;Array&gt;</code> - The raw data as a flat array of objects. Each object must represent a row from the result set.  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | sql | <code>String</code> | The SQL generated by `joinMonster` for the batch fetching. Use it to get the data from your database. |
 | [done] | <code>function</code> | An error-first "done" callback. Only define this parameter if you don't want to return a `Promise`. |
 
-<a name="where"></a>
+<a name="sqlExpr"></a>
 
-## where ⇒ <code>String</code>
-Function for generating a `WHERE` condition.
+## sqlExpr ⇒ <code>String</code> &#124; <code>Promise.&lt;String&gt;</code>
+Function for generating a SQL expression.
 
-**Returns**: <code>String</code> - The condition for the `WHERE` clause.  
+**Returns**: <code>String</code> &#124; <code>Promise.&lt;String&gt;</code> - The RAW expression interpolated into the query to compute the column. Unsafe user input must be scrubbed.  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | tableAlias | <code>String</code> | The alias generated for this table. Already double-quoted. |
 | args | <code>Object</code> | The GraphQL arguments for this field. |
 | context | <code>Object</code> | An Object with arbitrary contextual information. |
+| parentAliases | <code>Array.&lt;String&gt;</code> | List of aliases of the antecedent tables, starting with the top-level. |
+
+<a name="where"></a>
+
+## where ⇒ <code>String</code> &#124; <code>Promise.&lt;String&gt;</code>
+Function for generating a `WHERE` condition.
+
+**Returns**: <code>String</code> &#124; <code>Promise.&lt;String&gt;</code> - The RAW condition for the `WHERE` clause. Omitted if falsy value returned. Unsafe user input must be scrubbed.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| tableAlias | <code>String</code> | The alias generated for this table. Already double-quoted. |
+| args | <code>Object</code> | The GraphQL arguments for this field. |
+| context | <code>Object</code> | An Object with arbitrary contextual information. |
+| parentAliases | <code>Array.&lt;String&gt;</code> | List of aliases of the antecedent tables, starting with the top-level. |
 
 <a name="sqlJoin"></a>
 
 ## sqlJoin ⇒ <code>String</code>
 Function for generating a `JOIN` condition.
 
-**Returns**: <code>String</code> - The condition for the `LEFT JOIN`.  
+**Returns**: <code>String</code> - The RAW condition for the `LEFT JOIN`. Unsafe user input must be scrubbed.  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | parentTable | <code>String</code> | The alias generated for the parent's table. Already double-quoted. |
 | childTable | <code>String</code> | The alias for the child's table. Already double-quoted. |
+| args | <code>Object</code> | The GraphQL arguments for this field. |
+| context | <code>Object</code> | An Object with arbitrary contextual information. |
 

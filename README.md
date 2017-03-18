@@ -2,69 +2,138 @@
 ![join-monster](https://raw.githubusercontent.com/stems/join-monster/master/docs/img/join_monster.png)
 [![npm version](https://badge.fury.io/js/join-monster.svg)](https://badge.fury.io/js/join-monster) [![Build Status](https://travis-ci.org/stems/join-monster.svg?branch=master)](https://travis-ci.org/stems/join-monster) [![Documentation Status](https://readthedocs.org/projects/join-monster/badge/?version=latest)](http://join-monster.readthedocs.io/en/latest/?badge=latest)
 
-**Batch Data-Fetching for GraphQL and SQL.**
-- [Read the Documentation](http://join-monster.readthedocs.io/en/latest/)
-- Try Demo: [Non-Relay Compliant](https://join-monster.herokuapp.com/graphql?query=%7B%20users%20%7B%20%0A%20%20id%2C%20fullName%2C%20email%0A%20%20posts%20%7B%20id%2C%20body%20%7D%0A%7D%7D) or [Relay Compliant](https://join-monster.herokuapp.com/graphql-relay?query=%7B%0A%20%20node(id%3A%20%22VXNlcjoy%22)%20%7B%0A%20%20%20%20...%20on%20User%20%7B%20id%2C%20fullName%20%7D%0A%20%20%7D%0A%20%20user(id%3A%202)%20%7B%0A%20%20%20%20id%0A%20%20%20%20fullName%0A%20%20%20%20posts(first%3A%202%2C%20after%3A%20%22eyJpZCI6NDh9%22)%20%7B%0A%20%20%20%20%20%20pageInfo%20%7B%0A%20%20%20%20%20%20%20%20hasNextPage%0A%20%20%20%20%20%20%20%20startCursor%0A%20%20%20%20%20%20%20%20endCursor%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20edges%20%7B%0A%20%20%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20%20%20node%20%7B%0A%20%20%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20%20%20body%0A%20%20%20%20%20%20%20%20%20%20comments%20(first%3A%203)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20pageInfo%20%7B%20hasNextPage%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20edges%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20node%20%7B%20id%2C%20body%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%0A)
+### Query Planning and Batch Data Fetching between GraphQL and SQL.
+
+- Read the Documentation: [latest](http://join-monster.readthedocs.io/en/latest/) or [v0](http://join-monster.readthedocs.io/en/v0.9.9)
+- Try Demo: [basic version](http://join-monster.herokuapp.com/graphql?query=%7B%0A%20%20user(id%3A%202)%20%7B%0A%20%20%20%20fullName%0A%20%20%20%20email%0A%20%20%20%20posts%20%7B%0A%20%20%20%20%20%20id%0A%20%20%20%20%20%20body%0A%20%20%20%20%20%20createdAt%0A%20%20%20%20%20%20comments%20%7B%0A%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20body%0A%20%20%20%20%20%20%20%20author%20%7B%0A%20%20%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20%20%20fullName%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D) or [paginated version](https://join-monster.herokuapp.com/graphql-relay?query=%7B%0A%20%20node(id%3A%20%22VXNlcjoy%22)%20%7B%0A%20%20%20%20...%20on%20User%20%7B%20id%2C%20fullName%20%7D%0A%20%20%7D%0A%20%20user(id%3A%202)%20%7B%0A%20%20%20%20id%0A%20%20%20%20fullName%0A%20%20%20%20posts(first%3A%202%2C%20after%3A%20%22eyJpZCI6NDh9%22)%20%7B%0A%20%20%20%20%20%20pageInfo%20%7B%0A%20%20%20%20%20%20%20%20hasNextPage%0A%20%20%20%20%20%20%20%20startCursor%0A%20%20%20%20%20%20%20%20endCursor%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20edges%20%7B%0A%20%20%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20%20%20node%20%7B%0A%20%20%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20%20%20body%0A%20%20%20%20%20%20%20%20%20%20comments%20(first%3A%203)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20total%0A%20%20%20%20%20%20%20%20%20%20%20%20pageInfo%20%7B%20hasNextPage%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20edges%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20node%20%7B%20id%2C%20body%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%0A)
 - [Example Repo](https://github.com/stems/join-monster-demo)
 
 ## What is Join Monster?
 
-A JavaScript execution layer from GraphQL to SQL for batch data-fetching between the API and the database by dynamically **translating GraphQL to SQL** for efficient data retrieval, all in a single batch before resolution. Simply declare the data requirements of each field in you schema. Then, for each query, Join Monster will look at what was requested, find the data requirements, fetch, and shape your data.
+Efficient query planning and data fetching for SQL.
+Use `JOIN`s and/or batched requests to retrieve all your data.
+It takes a GraphQL query and your schema and automatically generates the SQL.
+Send that SQL to your database and get back all the data needed to resolve with only one or a few round-trips to the database.
 
+Translate a GraphQL query like this:
 
-It is **NOT** a tool for automatically creating a schema for you GraphQL from your database or vice versa. You retain the freedom and power to define your schemas how you want. Join Monster simply "compiles" a GraphQL query to a SQL query *based on the existing schemas*. It fits into existing applications and can be seamlessly removed later or used to varying degree.
-
+```graphql
+{
+  user(id: 2) {
+    fullName
+    email
+    posts {
+      id
+      body
+      comments {
+        body
+        author { fullName }
+      }
+    }
+  }
+}
 ```
-{                           SELECT                             {
-  user(id: 1) {               "user"."id",                       user: {
-    idEncoded                 "user"."first_name",                 idEncoded: 'MQ==',
-    fullName        ==>       "user"."last_name",        ==>       fullName: 'andrew carlson',
-    email                     "user"."email_address"               email: 'andrew@stem.is'
-  }                         FROM "accounts" AS "user"            }
-}                           WHERE "user".id = 1                }
+
+...into a couple SQL queries like this:
+
+```sql
+SELECT
+  "user"."id" AS "id",
+  "user"."email_address" AS "email_address",
+  "posts"."id" AS "posts__id",
+  "posts"."body" AS "posts__body",
+  "user"."first_name" AS "first_name",
+  "user"."last_name" AS "last_name"
+FROM accounts AS "user"
+LEFT JOIN posts AS "posts" ON "user".id = "posts".author_id
+WHERE "user".id = 2
+
+-- then get the right comments for each post
+SELECT
+  "comments"."id" AS "id",
+  "comments"."body" AS "body",
+  "author"."id" AS "author__id",
+  "author"."first_name" AS "author__first_name",
+  "author"."last_name" AS "author__last_name",
+  "comments"."post_id" AS "post_id"
+FROM comments AS "comments"
+LEFT JOIN accounts AS "author" ON "comments".author_id = "author".id
+WHERE "comments".archived = FALSE AND "comments"."post_id" IN (2,8,11,12)
 ```
+
+...and get back correctly hydrated data.
+
+```js
+{
+  "user": {
+    "fullName": "Yasmine Rolfson",
+    "email": "Earl.Koss41@yahoo.com",
+    "posts": [
+      {
+        "id": 2,
+        "body": "Harum unde maiores est quasi totam consequuntur. Necessitatibus doloribus ut totam dolore omnis quos error eos. Rem nostrum assumenda eius veniam fugit dicta in consequuntur. Ut porro dolorem aliquid qui magnam a.",
+        "comments": [
+          {
+            "body": "The AI driver is down, program the multi-byte sensor so we can parse the SAS bandwidth!",
+            "author": { "fullName": "Yasmine Rolfson" }
+          },
+          {
+            "body": "Try to program the SMS transmitter, maybe it will synthesize the optical firewall!",
+            "author": { "fullName": "Ole Barrows" }
+          },
+        ]
+      },
+      // other posts omitted for clarity...
+    ]
+  }
+}
+```
+
+It works on top of Facebook's [graphql-js](https://github.com/graphql/graphql-js) reference implementation.
+All you have to do is add a few properties to the objects in your schema and call the `joinMonster` function.
+A SQL query is "compiled" for you to send to the DBMS.
+The data-fetching is efficently batched.
+The data is then hydrated into the right shape for your GraphQL schema.
 
 ## Why?
 
-- [X] **Batching** - Fetch all the data in a single database query. No back-and-forth round trips.
-- [X] **Efficient** - No over-fetching get no more than what you need.
+More details on the "round-trip" (a.k.a. N+1) problem are [here](http://join-monster.readthedocs.io/en/latest/problem/).
+
+- [X] **Batching** - Fetch all the data in a single, or a few, database query(s).
+- [X] **Efficient** - No over-fetching data. Retrieve only the data that the client actually requested.
 - [X] **Maintainability** - SQL is automatically generated and adaptive. No need to manually write queries or update them when the schema changes.
 - [X] **Declarative** - Simply define the *data requirements* of the GraphQL fields on the SQL columns.
-- [X] **Unobtrusive** - Coexists with your custom resolve functions and existing schemas. Use it on the whole tree or only in parts. Retain the power and expressiveness in defining your schema.
+- [X] **Unobtrusive** - Coexists with your custom resolve functions and existing schemas. Use it on the whole graph or only in parts. Retain the power and expressiveness in defining your schema.
 - [X] **GraphQL becomes the ORM** - Mixing and matching sucks. With only a few additions of metadata, the GraphQL schema *becomes* the mapping relation.
 
-Join Monster is a means of batch-fetching data from your SQL database. It will not prevent you from writing custom resolvers or hinder your ability to define either of your schemas.
+Since it works with the reference implementation, the API is all very familiar. Join Monster is a tool built on top to add batch data fetching. You add some special properties along-side the schema definition that Join Monster knows to look for. The use of [graphql-js](https://github.com/graphql/graphql-js) does not change. You still define your types the same way. You can write resolve functions to mainpulate the data from Join Monster, or incorporate data from elsewhere without breaking out of your "join-monsterized" schema.
 
-[More details on this problem are here](http://join-monster.readthedocs.io/en/latest/problem/).
+## Get Pagination out of the Box
 
-## Works with the Relay Spec
+Join Monster has support for several different implementations of pagination, all based on the interface in the [Relay Connection Specification](https://facebook.github.io/relay/graphql/connections.htm). Using Relay on the client is totally optional!
+
+## Works with the RelayJS
 
 Great helpers for the **Node Interface** and automatic pagination for **Connection Types**. [See docs](http://join-monster.readthedocs.io/en/latest/relay/).
 
-You don't *have to* use Relay to paginate your API with Join Monster!
 
-## Running the Demo
+## Usage with GraphQL
 
-```shell
-$ git clone https://github.com/stems/join-monster-demo.git
-$ cd join-monster-demo
-$ npm install
-$ npm start
-# go to http://localhost:3000/graphql
-```
-
-Explore the schema, try out some queries, and see what the resulting SQL queries and responses look like in our custom version of GraphiQL!
-
-![graphsiql](https://raw.githubusercontent.com/stems/join-monster/master/docs/img/graphsiql.png)
-
-## Usage
-
-1. Assign your SQL tables to their corresponding `GraphQLObjectTypes`.
-2. Add some properties to the object type, like `sqlTable`, `uniqueKey`, `sqlColumn`, and more.
-3. Link your tables in your GraphQL fields by writing some `JOIN`s.
+1. Take your `GraphQLObjectType` from [graphql-js](https://github.com/graphql/graphql-js) and add the SQL table name.
+2. Do the fields need values from some SQL columns? Computed columns? Add some additional properties like `sqlColumn`, `sqlDeps`, or `sqlExpr` to the fields. Join Monster will look at these when analyzing the query.
+3. Got some relations? Write a function that tells Join Monster how to `JOIN` your tables and it will hydrate hierarchies of data.
 4. Resolve any type (and all its descendants) by calling `joinMonster` in its resolver. All it needs is the `resolveInfo` and a callback to send the (one) SQL query to the database. Voila! All your data is returned to the resolver.
 
 ```javascript
+import joinMonster from 'join-monster'
+import {
+  GraphQLObjectType,
+  GraphQLList,
+  GraphQLString,
+  GraphQLInt
+  // and some other stuff
+} from 'graphql'
+
 const User = new GraphQLObjectType({
   name: 'User',
   sqlTable: 'accounts', // the SQL table for this object type is called "accounts"
@@ -82,27 +151,64 @@ const User = new GraphQLObjectType({
     idEncoded: {
       description: 'The ID base-64 encoded',
       type: GraphQLString,
-      sqlColumn: 'id',
       // this field uses a sqlColumn and applies a resolver function on the value
       // if a resolver is present, the `sqlColumn` MUST be specified even if it is the same name as the field
+      sqlColumn: 'id',
       resolve: user => toBase64(user.idEncoded)
     },
     fullName: {
-      description: 'A user\'s first and last name',
+      description: "A user's first and last name",
       type: GraphQLString,
       // perhaps there is no 1-to-1 mapping of field to column
       // this field depends on multiple columns
       sqlDeps: [ 'first_name', 'last_name' ],
+      // compute the value with a resolver
       resolve: user => `${user.first_name} ${user.last_name}`
+    },
+    capitalizedLastName: {
+      type: GraphQLString,
+      // do a computed column in SQL with raw expression
+      sqlExpr: (table, args) => `UPPER(${table}.last_name)`
     },
     // got tables inside tables??
     // get it with a JOIN!
-    comments: {
-      type: new GraphQLList(Comment),
+    posts: {
+      description: "A List of posts this user has written.",
+      type: new GraphQLList(Post),
       // a function to generate the join condition from the table aliases
-      sqlJoin(userTable, commentTable) {
-        return `${userTable}.id = ${commentTable}.author_id`
+      sqlJoin(userTable, postTable) {
+        return `${userTable}.id = ${postTable}.author_id`
       }
+    },
+    // got a relationship but don't want to add another JOIN?
+    // get this in a second batch request
+    comments: {
+      description: "The comment they have written",
+      type: new GraphQLList(Comment),
+      // specify which columns to match up the values
+      sqlBatch: {
+        thisKey: 'author_id',
+        parentKey: 'id'
+      }
+    },
+    // many-to-many relations are supported too
+    following: {
+      description: "Other users that this user is following.",
+      type: new GraphQLList(User),
+      // name the table that holds the two foreign keys
+      junctionTable: 'relationships',
+      sqlJoins: [
+        // first the parent table to the junction
+        (followerTable, junctionTable, args) => `${followerTable}.id = ${junctionTable}.follower_id`,
+        // then the junction to the child
+        (junctionTable, followeeTable, args) => `${junctionTable}.followee_id = ${followeeTable}.id`
+      ]
+    },
+    numLegs: {
+      description: 'Number of legs this user has.',
+      type: GraphQLInt,
+      // data isn't coming from the SQL table? no problem! joinMonster will ignore this field
+      resolve: () => 2
     }
   })
 })
@@ -122,8 +228,21 @@ const Comment = new GraphQLObjectType({
   })
 })
 
+const Post = new GraphQLObjectType({
+  name: 'Post',
+  sqlTable: 'posts',
+  uniqueKey: 'id',
+  fields: () => ({
+    id: {
+      type: GraphQLInt
+    },
+    body: {
+      type: GraphQLString
+    }
+  })
+})
 
-const QueryRoot = new GraphQLObjectType({
+export const QueryRoot = new GraphQLObjectType({
   name: 'Query',
   fields: () => ({
     // place this user type in the schema
@@ -133,7 +252,7 @@ const QueryRoot = new GraphQLObjectType({
       args: {
         id: { type: GraphQLInt }
       },
-      // how to write the where condition
+      // how to write the WHERE condition
       where: (usersTable, args, context) => {
         if (args.id) return `${usersTable}.id = ${args.id}`
       },
@@ -150,12 +269,42 @@ const QueryRoot = new GraphQLObjectType({
 })
 ```
 
+Detailed instructions for set up are found in the [docs](http://join-monster.readthedocs.io/en/latest/data-model).
+
+### Using with Apollo Server
+
+The GraphQL schema language doesn't let you add arbitrary properties to the type definitions. If you're using something like [graphql-tools](https://github.com/apollographql/graphql-tools), you'll need an **adapter**. See the [join-monster-graph-tools-adapter](https://github.com/acarl005/join-monster-graphql-tools-adapter) if you want to use this with Apollo.
+
+## Running the Demo
+
+```shell
+$ git clone https://github.com/stems/join-monster-demo.git
+$ cd join-monster-demo
+$ npm install
+$ npm start
+# go to http://localhost:3000/graphql
+
+# if you also want to run the paginated version, create postgres database from the dump provided
+psql $YOUR_DATABASE < data/paginated-demo-dump.sql
+DATABASE_URL=postgres://$USER:$PASS@$HOST/$YOUR_DATABASE npm start
+# go to http://localhost:3000/graphql-relay
+```
+
+Explore the schema, try out some queries, and see what the resulting SQL queries and responses look like in [our custom version of GraphiQL](https://github.com/acarl005/graphsiql)!
+
+![graphsiql](https://raw.githubusercontent.com/stems/join-monster/master/docs/img/graphsiql.png)
+
 **There's still a lot of work to do. Please feel free to fork and submit a Pull Request!**
 
 ## TODO
 
-- [ ] Much better error messages in cases of mistakes (like missing sql properties)
-- [ ] Figure out a way to handle Interface and Union types
-- [ ] Figure out a way to support the schema language
 - [ ] Aggregate functions
+- [ ] Port to other JavaScript implementations of GraphQL
+- [ ] Add other SQL dialects (Microsoft SQL server, for example, uses `CROSS APPLY` instead of `LATERAL`)
+- [ ] Much better error messages in cases of mistakes (like missing sql properties)
+
+## NON-GOALS
+
+- Caching: application specific cache invalidation makes this a problem we don't want to solve
+- Support EVERY SQL Feature (only the most powerful subset of the most popular databases will be supported)
 

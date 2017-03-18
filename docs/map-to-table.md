@@ -15,7 +15,7 @@ const User = new GraphQLObjectType({
 
 ## Table Name Details
 
-If your table is on a SQL schema that is not the default, e.g. `public`, you can specify it in `sqlTable` with a dot separator. Names that include characters other than **a-z**, **#**, and **$** (for example capital letters) must be wrapped in double quotes.
+If your table is on a SQL schema that is not the default, e.g. `public`, you can specify it in `sqlTable` with a dot separator. You must escape any characters that need to be escaped for your particular SQL database. For example, in SQLite3 or PostgreSQL, names that include characters other than **a-z**, **#**, and **$** (for example capital letters) must be wrapped in double quotes. In MySQL/MariaDB, you would use backticks.
 
 ```javascript
 const User = new GraphQLObjectType({
@@ -26,9 +26,22 @@ const User = new GraphQLObjectType({
 })
 ```
 
+The `sqlTable` can generalize to any **table expression**. Instead of a physical table, it could be a VIEW or a *derived table*.
+
+```javascript
+const User = new GraphQLObjectType({
+  name: 'User',
+  sqlTable: '(SELECT * FROM accounts WHERE active = 1)', // this can be an expression that generates a TABLE
+  uniqueKey: 'id',
+  fields: () => ({ /*...*/ })
+})
+```
+
+This can be a useful technique if you data *isn't actually modelled like Join Monster expects*. Placing VIEWs on top of your SQL tables is a good way to achieve logical data independence.
+
 ## Composite Keys
 
-If no single column in your table is unique, that's okay. Perhaps you have a *composite key*, where the combined value of multiple column is unique for each row.
+If no single column in your table is unique, that's okay. Perhaps you have a **composite key**, where the combined value of multiple column is unique for each row.
 
 | generation | first_name | last_name |
 | ---------- | ---------- | --------- |
@@ -38,7 +51,7 @@ If no single column in your table is unique, that's okay. Perhaps you have a *co
 | 2          | matt       | bachman   |
 | 1          | matt       | daemon    |
 
-Just make `uniqueKey` an array of string instead of a string. Join Monster will use the SQL `||` operator to concatenate the values of those columns and identify the row based on the combination.
+Just make `uniqueKey` an array of string instead of a string. Join Monster will use the SQL `||` operator or the `CONCAT` function to concatenate the values of those columns and identify the row based on the combination.
 
 ```javascript
 const User = new GraphQLObjectType({

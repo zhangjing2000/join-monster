@@ -23,7 +23,8 @@ We need to add a field to our `User`, and tell `joinMonster` how to grab these c
 
 ## Writing the JOIN Condition
 
-This can be done with a `sqlJoin` property with a function. It will take the parent table and child table names (actually the aliases that `joinMonster` will generate) as parameters respectively and return the join condition.
+This can be done with a `sqlJoin` property with a function.
+It will take the parent table and child table names (actually the aliases that `joinMonster` will generate), the GraphQL args, and the context as parameters respectively and return (a Promise of) the join condition.
 
 ```javascript
 const User = new GraphQLObjectType({
@@ -34,20 +35,33 @@ const User = new GraphQLObjectType({
       type: new GraphQLList(Comment),
       // a function to generate the join condition from the table aliases
       // NOTE: you must double-quote any case-sensitive column names the table aliases are already quoted
-      sqlJoin: (userTable, commentTable) => `${userTable}.id = ${commentTable}.author_id`
+      sqlJoin: (userTable, commentTable, args) => `${userTable}.id = ${commentTable}.author_id`
     }
   })
 })
 ```
 
-**Note:** If your column names have capital letters, or consist of anything that isn't an alpha-numeric character, $ and #, then you must *double-quote* your column names in the returned `JOIN` condition. The table aliases being passed to the `sqlJoin` function are already quoted, but any identifier that you type yourself will not be automatically quoted.
+**Note:** If your column names have capital letters, or consist of anything that isn't an alpha-numeric character, $ and #, then you must *double-quote* your column names in the returned `JOIN` condition.
+The table aliases being passed to the `sqlJoin` function are already quoted, but any identifier that you type yourself will not be automatically quoted.
+Like the [where](/API/#where) function, this returns raw SQL. Be sure to **escape any unsafe user input!**
 
 Now you can query for the comments for each user!
+
 ```graphql
 {
   users { 
-    id, idEncoded, email, fullName
-    comments { id, body }
+    id
+    email
+    fullName
+    comments {
+      id
+      body
+    }
   }
 }
 ```
+
+All the data will be fetched in a single round-trip to the database.
+
+See [API](/API/#sqlJoin) for more details on the `sqlJoin` function.
+

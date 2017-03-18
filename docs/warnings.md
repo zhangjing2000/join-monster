@@ -36,9 +36,18 @@ As mentioned above, the client may incidentally request data from duplicate rows
 
 Join Monster computes some columns for internal use. It also uses column aliases to infer the object structure, delimited by double underscores. Although unlikely, it's best to avoid risking name clashing and avoiding using these characters in your schemas.
 
+## SQL Injection
 
-## PostGreSQL Version
+<div class="admonition danger">
+  <p class="first admonition-title">Warning</p>
+  <p class="last">
+    Escape string inputs to prevent SQL injection.
+  </p>
+</div>
 
-If using some of the advanced pagination, a non-standard dialect is required. Currently only Postgres is officially supported. The `LATERAL` keyword is used, which is only in versions 9.3 and later. Theoretically, the `pg` dialect should work on Oracle, but this is not tested.
-
+Some functions accept values that the library will interpolate into the query, such as `joinMonster.getNode` or the `sortKey` function.
+**These are properly escaped**.
+However, some functions return RAW clauses into which may or may not accept untrustworthy user input.
+If these are strings containing malicious code, a SQL injection attack can occur.
+Such functions, like the `where`, `sqlJoin`, or `sqlExpr` function, should escape the input. See [this page](/where/) for example.
 
